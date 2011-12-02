@@ -10,6 +10,7 @@
 ## X-Website: http://www.wowace.com/addons/libinspect/
 ## X-Category: Library
 ## X-License: GNU General Public License version 3 (GPLv3)
+## OptionalDeps: LibStub
 
 LibStub\LibStub.lua
 LibInspect.lua
