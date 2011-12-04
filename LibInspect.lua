@@ -38,6 +38,8 @@ if not lib then return end
 if not lib.frame then lib.frame = CreateFrame("Frame"); end
 
 lib.maxAge = 1800; -- seconds
+lib.rescan = 8; -- What to consider min items
+lib.rescanGUID = 0; -- GUID for 2nd pass scanning
 lib.cache = {};
 lib.hooks = {
     items = {},
@@ -145,6 +147,9 @@ function lib:RequestData(what, target, force)
     
     if not what then what = 'all'; end
     
+    -- Manual requests reset the rescan lock
+    self.rescanGUID = 0;
+    
     -- Make sure they are in cache
     local guid = self:AddCharacter(target);
     
@@ -245,12 +250,38 @@ function lib:InspectReady(guid)
             
             self.cache[guid].data['items'] = {};
             
-            for i = 1, 18 do
-                self.cache[guid].data['items'][i] = GetInventoryItemLink(target, i);
+            local items, count = self:GetItems(target);
+            
+            -- Do a 2nd pass if there aren't many items
+            if self.rescan <= 8 and self.rescanGUID == guid then
+                self.rescanGUID = guid;
+                NotifyInspect(target);
             end
+            
+            self.cache[guid].data.items = items;
         end
         
         self:RunHooks('items', guid);
+    end
+end
+
+function lib:GetItems(target)
+    if CanInspect(target) then
+        local items = {};
+        local count = 0;
+        
+        for i = 1, 18 do
+            local itemLink = GetInventoryItemLink(target, i);
+            items[i] = itemLink;
+            
+            if itemLink then count = count + 1; end
+        end
+        
+        print('GetItems', UnitName(target), count);
+        
+        return items, count;
+    else
+        return false;
     end
 end
 
