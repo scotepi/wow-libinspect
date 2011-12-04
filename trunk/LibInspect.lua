@@ -264,8 +264,11 @@ function lib:InspectReady(guid)
             
             local items, count = self:GetItems(target);
             
+            --- print('LibInspect:InspectReady Done', UnitName('target'), guid, self.rescanGUID, count);
+            
             -- Do a 2nd pass if there aren't many items
-            if self.rescan <= 8 and self.rescanGUID == guid then
+            if count <= lib.rescan and self.rescanGUID ~= guid then
+                --- print('LibInspect:InspectReady Rescaning', UnitName('target'));
                 self.rescanGUID = guid;
                 self:SafeRequestItems(target);
             end
