@@ -8,9 +8,13 @@ type:
 
 Methods:
 success = LibInspect:AddHook('MyAddon', type, function(guid, data, age) YourFunction(guid, data, age); end);
+
 maxAge = LibInspect:SetMaxAge(seconds);
+recanQuantity = LibInspect:SetRescan(items);
+
 caninspect, unitfound, refreshing = LibInspect:RequestData(type, target, force);
-    or LibInspect:Request_Type_(target, force) ex. LibInspect:RequestItems(...)
+    or LibInspect:Request_Type_(target, force)
+    ex. LibInspect:RequestItems(...)
 
 Callbacks:
     When the data is ready you YourFunction(guid, data, age) will be called
@@ -38,7 +42,7 @@ if not lib then return end
 if not lib.frame then lib.frame = CreateFrame("Frame"); end
 
 lib.maxAge = 1800; -- seconds
-lib.rescan = 8; -- What to consider min items
+lib.rescan = 10; -- What to consider min items
 lib.rescanGUID = 0; -- GUID for 2nd pass scanning
 lib.cache = {};
 lib.hooks = {
@@ -132,11 +136,19 @@ function lib:RemoveHook(addon, what)
 end
 
 function lib:SetMaxAge(maxAge)
-    if ( maxAge < self.maxAge ) then
+    if maxAge < self.maxAge then
         self.maxAge = maxAge;
     end
     
     return self.maxAge;
+end
+
+function lib:SetRescan(items)
+    if tonumber(items) and items >= 0 and items <= 16 then
+        self.rescan = items;
+    end
+    
+    return self.rescan;
 end
 
 function lib:RequestData(what, target, force)
@@ -255,7 +267,7 @@ function lib:InspectReady(guid)
             -- Do a 2nd pass if there aren't many items
             if self.rescan <= 8 and self.rescanGUID == guid then
                 self.rescanGUID = guid;
-                NotifyInspect(target);
+                self:SafeRequestItems(target);
             end
             
             self.cache[guid].data.items = items;
@@ -274,10 +286,13 @@ function lib:GetItems(target)
             local itemLink = GetInventoryItemLink(target, i);
             items[i] = itemLink;
             
-            if itemLink then count = count + 1; end
+            if itemLink then 
+                 --- print('LibInspect:GetItems', UnitName(target), i, itemLink);
+                count = count + 1; 
+            end
         end
         
-        print('GetItems', UnitName(target), count);
+        --- print('LibInspect:GetItems Total', UnitName(target), count);
         
         return items, count;
     else
