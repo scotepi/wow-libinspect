@@ -37,13 +37,13 @@ Callbacks:
 ]]
 
 -- Start the lib
-local lib = LibStub:NewLibrary('LibInspect', 1);
+local lib = LibStub:NewLibrary('LibInspect', 2);
 if not lib then return end
 if not lib.frame then lib.frame = CreateFrame("Frame"); end
 
 lib.maxAge = 1800; -- seconds
-lib.rescan = 10; -- What to consider min items
-lib.rescanGUID = 0; -- GUID for 2nd pass scanning
+lib.rescan = 8; -- What to consider min items
+lib.rescanGUID = {}; -- GUID for 2nd pass scanning
 lib.cache = {};
 lib.hooks = {
     items = {},
@@ -159,8 +159,14 @@ function lib:RequestData(what, target, force)
     
     if not what then what = 'all'; end
     
+    -- We can skip some things if target is player
+    local skip = false;
+    if target == 'player' or UnitIsUnit('player', target) then
+        skip = true;
+    end
+    
     -- Manual requests reset the rescan lock
-    self.rescanGUID = 0;
+    self.rescanGUID[target] = 0;
     
     -- Make sure they are in cache
     local guid = self:AddCharacter(target);
@@ -168,17 +174,17 @@ function lib:RequestData(what, target, force)
     if guid then
         
         -- First check for cached
-        if  self.cache[guid].data == false or self.cache[guid].time == 0 or (time() - self.cache[guid].time) > self.maxAge or force then
+        if self.cache[guid].data == false or self.cache[guid].time == 0 or (time() - self.cache[guid].time) > self.maxAge or force then
             
             self.cache[guid].target = target;
             
             if what == 'all' then
-                self:SafeRequestItems(target);
+                self:SafeRequestItems(target, guid, skip);
                 self:SafeRequestHonor(target);
                 self:SafeRequestTalents(target);
                 self:SafeRequestAchivements(target);
             elseif what == 'items' then
-                self:SafeRequestItems(target);
+                self:SafeRequestItems(target, guid, skip);
             elseif what == 'honor' then
                 self:SafeRequestHonor(target);
             elseif what == 'talents' then
@@ -225,12 +231,31 @@ function lib:RequestTalents(target, force) return self:RequestData('items', targ
 function lib:RequestAchivements(target, force) return self:RequestData('achivements', target, force); end
 
 -- Safe Functions for Requests
-function lib:SafeRequestItems(target)
+function lib:SafeRequestItems(target, guid, skip)
     
-    -- Fix an inspect frame bug, may be fixed in 4.3
-    if InspectFrame then InspectFrame.unit = target; end
+    -- We can skip everything else
+    if skip then
+        self:InspectReady(guid)
+        return
+    end
     
-    NotifyInspect(target);
+    local canInspect = false;
+    
+    if not self.cache[guid].inspect then
+        canInspect = true;
+    elseif self.cache[guid].inspect and tonumber(self.cache[guid].inspect) and self:GetAge(self.cache[guid].inspect) > 5 then
+        canInspect = true;
+    end
+    
+    if canInspect then
+        
+        -- Fix an inspect frame bug, may be fixed in 4.3
+        if InspectFrame then InspectFrame.unit = target; end
+        
+        --- print('LibInspect:SafeRequestItems running NotifyInspect for', UnitName(target), target);
+        self.cache[guid].inspect = time();
+        NotifyInspect(target);
+    end
 end
 
 function lib:SafeRequestHonor(target)
@@ -248,8 +273,10 @@ function lib:InspectReady(guid)
     if not guid then return false end
     if InCombatLockdown() then return false end
     
-    -- Make sure we have a target
-    if self.cache[guid] and self.cache[guid].target then
+    --- print('LibInspect:InspectReady', guid, self.cache[guid]);
+    
+    -- Make sure we have a target and its the same as the cache
+    if self.cache[guid] and self.cache[guid].target and UnitGUID(self.cache[guid].target) == guid then
         local target = self.cache[guid].target;
         
         -- Make sure we can still inspect them still
@@ -260,18 +287,21 @@ function lib:InspectReady(guid)
                 self.cache[guid].data = {};
             end
             
+            self.cache[guid].inspect = false;
             self.cache[guid].data['items'] = {};
             
             local items, count = self:GetItems(target);
             
-            --- print('LibInspect:InspectReady Done', UnitName('target'), guid, self.rescanGUID, count);
+            --- print('LibInspect:InspectReady Done', UnitName(target), guid, self.rescanGUID[target], count);
             
             -- Do a 2nd pass if there aren't many items
-            if count <= lib.rescan and self.rescanGUID ~= guid then
-                --- print('LibInspect:InspectReady Rescaning', UnitName('target'));
-                self.rescanGUID = guid;
-                self:SafeRequestItems(target);
+            if count <= self.rescan and self.rescanGUID[target] ~= guid then
+                --- print('LibInspect:InspectReady Rescaning', UnitName('target'), count, self.rescan, self.rescanGUID[target], guid);
+                self.rescanGUID[target] = guid;
+                self:SafeRequestItems(target, guid);
+                return false;
             end
+            
             
             self.cache[guid].data.items = items;
         end
@@ -313,6 +343,8 @@ function lib:AddCharacter(target)
             self.cache[guid] = {};
             self.cache[guid].data = false;
             self.cache[guid].time = 0;
+            self.cache[guid].request = 0;
+            self.cache[guid].inspect = false;
         end
         
         -- Update target cache
@@ -327,7 +359,15 @@ end
 
 function lib:RunHooks(what, guid)
     for addon,callback in pairs(self.hooks[what]) do
-        callback(guid, self.cache[guid].data, time() - self.cache[guid].time);
+        callback(guid, self.cache[guid].data, self:GetAge(self.cache[guid].time));
+    end
+end
+
+function lib:GetAge(t)
+    if tonumber(t) then
+        return time() - tonumber(t);
+    else
+        return false;
     end
 end
 
