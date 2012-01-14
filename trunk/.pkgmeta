@@ -5,4 +5,4 @@ externals:
         url: svn://svn.wowace.com/wow/libstub/mainline/trunk
         tag: latest
 
-enable-nolib-creation: yes
+enable-nolib-creation: no
