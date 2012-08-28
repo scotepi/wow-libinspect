@@ -37,12 +37,12 @@ Callbacks:
 ]]
 
 -- Start the lib
-local lib = LibStub:NewLibrary('LibInspect', 2);
+local lib = LibStub:NewLibrary('LibInspect', 3);
 if not lib then return end
 if not lib.frame then lib.frame = CreateFrame("Frame"); end
 
 lib.maxAge = 1800; -- seconds
-lib.rescan = 8; -- What to consider min items
+lib.rescan = 7; -- What to consider min items
 lib.rescanGUID = {}; -- GUID for 2nd pass scanning
 lib.cache = {};
 lib.hooks = {
@@ -144,7 +144,7 @@ function lib:SetMaxAge(maxAge)
 end
 
 function lib:SetRescan(items)
-    if tonumber(items) and items >= 0 and items <= 16 then
+    if tonumber(items) and items >= 0 and items <= 15 then
         self.rescan = items;
     end
     
@@ -315,7 +315,7 @@ function lib:GetItems(target)
         local items = {};
         local count = 0;
         
-        for i = 1, 18 do
+        for i = 1, 17 do
             local itemLink = GetInventoryItemLink(target, i);
             items[i] = itemLink;
             
