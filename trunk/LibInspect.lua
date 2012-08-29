@@ -37,7 +37,7 @@ Callbacks:
 ]]
 
 -- Start the lib
-local lib = LibStub:NewLibrary('LibInspect', 3);
+local lib = LibStub:NewLibrary('LibInspect', 4);
 if not lib then return end
 if not lib.frame then lib.frame = CreateFrame("Frame"); end
 
@@ -315,7 +315,7 @@ function lib:GetItems(target)
         local items = {};
         local count = 0;
         
-        for i = 1, 17 do
+        for i = INVSLOT_FIRST_EQUIPPED, INVSLOT_LAST_EQUIPPED do
             local itemLink = GetInventoryItemLink(target, i);
             items[i] = itemLink;
             
