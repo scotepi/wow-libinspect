@@ -26,10 +26,39 @@ Callbacks:
             1 = itemLink,
             2 = itemLink,
             ...
-            18 = itemLink,
+            19 = itemLink,
         },
         honor = ...,
-        talents = ...,
+        talents = {
+            id = ,
+            name = string,
+            description = string,
+            icon = image,
+            background = image,
+            role = role,
+            talents = {
+                1 = {   -- see GetTalentInfo()
+                    name = string,
+                    iconTexture = image,
+                    tier = int,
+                    column = int,
+                    selected = bool,
+                    available = bool,
+                },
+                ...
+            },
+            glyphs = {
+                1 = {   -- see GetGlyphSocketInfo()
+                    enabled = int,
+                    glyphType = GLYPH_TYPE_MAJOR or GLYPH_TYPE_MINOR,
+                    glyphTooltipIndex = ,
+                    glyphSpell = spellId,
+                    iconFilename = image or nil,
+                    glyphID = ,
+                },
+                ...
+            },
+        },
         achivements = ...,
     }
     
@@ -37,7 +66,7 @@ Callbacks:
 ]]
 
 -- Start the lib
-local lib = LibStub:NewLibrary('LibInspect', 4);
+local lib = LibStub:NewLibrary('LibInspect', 5);
 if not lib then return end
 if not lib.frame then lib.frame = CreateFrame("Frame"); end
 
@@ -54,6 +83,7 @@ lib.hooks = {
 
 lib.events = {
     items = "INSPECT_READY",
+    talents = "INSPECT_READY",
     honor = "INSPECT_HONOR_UPDATE",
     achievemnts = "INSPECT_ACHIEVEMENT_READY",
 }
@@ -180,17 +210,16 @@ function lib:RequestData(what, target, force)
             
             if what == 'all' then
                 self:SafeRequestItems(target, guid, skip);
-                self:SafeRequestHonor(target);
-                self:SafeRequestTalents(target);
-                self:SafeRequestAchivements(target);
+                self:SafeRequestHonor(target, guid, skip);
+                self:SafeRequestAchivements(target, guid, skip);
             elseif what == 'items' then
                 self:SafeRequestItems(target, guid, skip);
             elseif what == 'honor' then
-                self:SafeRequestHonor(target);
+                self:SafeRequestHonor(target, guid, skip);
             elseif what == 'talents' then
-                self:SafeRequestTalents(target);
+                self:SafeRequestItems(target, guid, skip);
             elseif what == 'achivements' then
-                self:SafeRequestAchivements(target);
+                self:SafeRequestAchivements(target, guid, skip);
             else
                 --- print('LibInspect:RequestData Unkown Type ', what);
                 return false;
@@ -250,7 +279,7 @@ function lib:SafeRequestItems(target, guid, skip)
     if canInspect then
         
         -- Fix an inspect frame bug, may be fixed in 4.3
-        if InspectFrame then InspectFrame.unit = target; end
+        -- if InspectFrame then InspectFrame.unit = target; end
         
         --- print('LibInspect:SafeRequestItems running NotifyInspect for', UnitName(target), target);
         self.cache[guid].inspect = time();
@@ -258,14 +287,11 @@ function lib:SafeRequestItems(target, guid, skip)
     end
 end
 
-function lib:SafeRequestHonor(target)
+function lib:SafeRequestHonor(target, guid, skip)
     RequestInspectHonorData();
 end
 
-function lib:SafeRequestTalents(target)
-end
-
-function lib:SafeRequestAchivements(target)
+function lib:SafeRequestAchivements(target, guid, skip)
 end
 
 function lib:InspectReady(guid)
@@ -290,7 +316,8 @@ function lib:InspectReady(guid)
             self.cache[guid].inspect = false;
             self.cache[guid].data['items'] = {};
             
-            local items, count = self:GetItems(target);
+            local items, count = self:GetItems(target, guid);
+            local talents = self:GetTalents(target, guid);
             
             --- print('LibInspect:InspectReady Done', UnitName(target), guid, self.rescanGUID[target], count);
             
@@ -304,13 +331,15 @@ function lib:InspectReady(guid)
             
             
             self.cache[guid].data.items = items;
+            self.cache[guid].data.talents = talents;
         end
         
         self:RunHooks('items', guid);
+        self:RunHooks('talents', guid);
     end
 end
 
-function lib:GetItems(target)
+function lib:GetItems(target, guid)
     if CanInspect(target) then
         local items = {};
         local count = 0;
@@ -333,6 +362,66 @@ function lib:GetItems(target)
     end
 end
 
+function lib:GetTalents(target, guid)
+    if CanInspect(target) then
+        local spec
+        
+        if target == 'player' or UnitIsUnit('player', target) then
+            spec = GetSpecializationInfo(GetSpecialization())
+        else
+            spec = GetInspectSpecialization(target)
+        end
+        
+        local id, name, description, icon, background = GetSpecializationInfoByID(spec)
+        local role = GetSpecializationRoleByID(spec)
+        
+        local talents = {
+            id = id,
+            name = name,
+            description = description,
+            icon = icon,
+            background = background,
+            role = role,
+            glyphs = {},
+            talents = {},
+        };
+        
+        -- Glyphs
+        for socket = 1, NUM_GLYPH_SLOTS do
+           local enabled, glyphType, glyphTooltipIndex, glyphSpell, iconFilename, glyphID = GetGlyphSocketInfo(socket, nil, true, target)
+           talents.glyphs[socket] = {
+              enabled = enabled,
+              glyphType = glyphType,
+              glyphTooltipIndex = glyphTooltipIndex,
+              glyphSpell = glyphSpell,
+              iconFilename = iconFilename,
+              glyphID = glyphID,
+           }
+           
+        end
+
+        -- Talents
+        local classDisplayName, class, classID = UnitClass(target);
+        for i=1, MAX_NUM_TALENTS do
+            if i <= GetNumTalents(target) then
+                local name, iconTexture, tier, column, selected, available = GetTalentInfo(i, true, nil, target, self.cache[guid].classID);
+                talents.talents[i] = {
+                    name = name,
+                    iconTexture = iconTexture,
+                    tier = tier,
+                    column = column,
+                    selected = selected,
+                    available = available,
+                }
+            end
+        end
+
+        return talents;
+    else
+        return false;
+    end
+end
+
 
 function lib:AddCharacter(target)
     local guid = UnitGUID(target);
@@ -340,11 +429,15 @@ function lib:AddCharacter(target)
     if guid then
         -- Set up information
         if not self.cache[guid] then
-            self.cache[guid] = {};
-            self.cache[guid].data = false;
-            self.cache[guid].time = 0;
-            self.cache[guid].request = 0;
-            self.cache[guid].inspect = false;
+            local _, _, classID = UnitClass(target);
+            
+            self.cache[guid] = {
+                data = false,
+                time = 0,
+                request = 0,
+                inspect = false,
+                classID = classID,
+            };
         end
         
         -- Update target cache
