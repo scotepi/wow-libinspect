@@ -367,7 +367,11 @@ function lib:GetTalents(target, guid)
         local spec
         
         if target == 'player' or UnitIsUnit('player', target) then
-            spec = GetSpecializationInfo(GetSpecialization())
+            if GetSpecialization() then
+                spec = GetSpecializationInfo(GetSpecialization())
+            else
+                return false
+            end
         else
             spec = GetInspectSpecialization(target)
         end
