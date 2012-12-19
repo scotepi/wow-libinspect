@@ -12,5 +12,8 @@
 ## X-License: GNU General Public License version 3 (GPLv3)
 ## OptionalDeps: LibStub
 
+#@no-lib-strip@
 LibStub\LibStub.lua
+#@end-no-lib-strip@
+
 LibInspect.lua
