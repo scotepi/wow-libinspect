@@ -1,4 +1,4 @@
-## Interface: 50200
+## Interface: 50300
 ## X-Curse-Packaged-Version: Release-r1041
 ## X-Curse-Project-Name: LibInspect
 ## X-Curse-Project-ID: libinspect
