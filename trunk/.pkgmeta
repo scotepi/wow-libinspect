@@ -1,7 +1,7 @@
 package-as: LibInspect
 
 externals:
-    LibStub: svn://svn.wowace.com/wow/libstub/mainline/trunk
+    LibStub: https://repos.wowace.com/wow/libstub/trunk
 
 ignore:
     - LibStub/tests
