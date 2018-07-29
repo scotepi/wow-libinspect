@@ -1,3 +1,9 @@
 package-as: LibInspect
 
+externals:
+    LibStub: https://repos.wowace.com/wow/libstub/trunk
+
+ignore:
+    - LibStub/tests
+	
 enable-nolib-creation: yes
