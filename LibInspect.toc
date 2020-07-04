@@ -1,4 +1,4 @@
-## Interface: 80000
+## Interface: 83000
 ## X-Curse-Packaged-Version: Release-@project-version@
 ## X-Curse-Project-Name: LibInspect
 ## X-Curse-Project-ID: libinspect
